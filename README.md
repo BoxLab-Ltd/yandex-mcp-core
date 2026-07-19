@@ -1,7 +1,7 @@
 # @boxlab/yandex-mcp-core
 
 [![CI](https://github.com/BoxLab-Ltd/yandex-mcp-core/actions/workflows/ci.yml/badge.svg)](https://github.com/BoxLab-Ltd/yandex-mcp-core/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/@boxlab/yandex-mcp-core.svg)](https://www.npmjs.com/package/@boxlab/yandex-mcp-core)
+[![npm](https://badgen.net/npm/v/@boxlab/yandex-mcp-core)](https://www.npmjs.com/package/@boxlab/yandex-mcp-core)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 
 Shared plumbing for **Yandex MCP servers** — so authentication, the HTTP
