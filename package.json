@@ -1,0 +1,61 @@
+{
+    "name": "@boxlab/yandex-mcp-core",
+    "version": "0.1.0",
+    "description": "Shared auth (OAuth PKCE + loopback login), HTTP client and MCP helpers for Yandex MCP servers.",
+    "keywords": [
+        "yandex",
+        "oauth",
+        "pkce",
+        "mcp",
+        "model-context-protocol"
+    ],
+    "license": "MIT",
+    "publishConfig": {
+        "access": "public"
+    },
+    "homepage": "https://github.com/BoxLab-Ltd/yandex-mcp-core#readme",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/BoxLab-Ltd/yandex-mcp-core.git"
+    },
+    "bugs": {
+        "url": "https://github.com/BoxLab-Ltd/yandex-mcp-core/issues"
+    },
+    "type": "module",
+    "engines": {
+        "node": ">=18"
+    },
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "default": "./dist/index.js"
+        }
+    },
+    "files": [
+        "dist"
+    ],
+    "scripts": {
+        "build": "tsc -p tsconfig.build.json",
+        "typecheck": "tsc -p tsconfig.json",
+        "lint": "eslint .",
+        "format": "prettier --write .",
+        "test": "bun test",
+        "prepublishOnly": "npm run build"
+    },
+    "dependencies": {
+        "@modelcontextprotocol/sdk": "^1.29.0",
+        "zod": "^4.4.3"
+    },
+    "devDependencies": {
+        "@eslint/js": "^10.0.1",
+        "@types/bun": "^1.3.14",
+        "@types/node": "^26.1.1",
+        "eslint": "^10.5.0",
+        "eslint-config-prettier": "^10.1.8",
+        "prettier": "^3.8.4",
+        "typescript": "^6.0.3",
+        "typescript-eslint": "^8.61.0"
+    }
+}
