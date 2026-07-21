@@ -1,6 +1,6 @@
 {
     "name": "@boxlab/yandex-mcp-core",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "Shared auth (OAuth PKCE + loopback login), HTTP client and MCP helpers for Yandex MCP servers.",
     "keywords": [
         "yandex",
