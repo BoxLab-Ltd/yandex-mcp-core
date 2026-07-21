@@ -19,7 +19,7 @@ export interface YandexClientOptions {
     /** Whether a reactive refresh could ever yield a different token. */
     canRefresh?: () => boolean
     userAgent: string
-    /** Max in-flight requests (Metrica allows 3 concurrent per user). */
+    /** Max in-flight requests (per the API's per-user concurrency cap). */
     maxConcurrency: number
     requestTimeoutMs: number
     /** Default `lang` applied when a call does not specify one. */
@@ -95,7 +95,7 @@ export interface RequestOptions {
 }
 
 /**
- * Framework-agnostic HTTP client for the Yandex Metrica API. Knows nothing
+ * Framework-agnostic HTTP client for Yandex APIs. Knows nothing
  * about MCP. Handles auth, concurrency, timeouts, and retry/backoff. Returns
  * parsed JSON (`request`/`requestJson`) or streams raw text lines
  * (`streamLines`, for the Logs API) so callers validate/parse shape themselves.
@@ -127,8 +127,8 @@ export class YandexClient {
 
     /**
      * Request `path` (GET or POST) returning parsed JSON. POST sends its params
-     * as the query string with an empty body — the shape the Metrica management
-     * endpoints (including Logs API create/clean/cancel) expect.
+     * as the query string with an empty body — the shape the Yandex management
+     * endpoints (including Metrica's Logs API create/clean/cancel) expect.
      */
     async requestJson(
         path: string,
@@ -236,7 +236,7 @@ export class YandexClient {
         } catch {
             throw new YandexApiError(
                 status,
-                'Metrica API returned a non-JSON response',
+                'Yandex API returned a non-JSON response',
             )
         }
     }
@@ -341,14 +341,14 @@ export class YandexClient {
             if (err instanceof Error && err.name === 'AbortError') {
                 throw new YandexApiError(
                     0,
-                    `Request to Metrica API timed out after ${this.options.requestTimeoutMs}ms`,
+                    `Request to Yandex API timed out after ${this.options.requestTimeoutMs}ms`,
                     ['timeout'],
                 )
             }
             const detail = err instanceof Error ? err.message : String(err)
             throw new YandexApiError(
                 0,
-                `Network error reaching the Metrica API: ${detail}`,
+                `Network error reaching the Yandex API: ${detail}`,
                 ['network_error'],
             )
         } finally {

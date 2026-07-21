@@ -24,7 +24,7 @@ const SUCCESS_HTML =
     `<!doctype html><html lang="en"><head><meta charset="utf-8">` +
     `<title>Signed in</title></head>` +
     `<body style="font-family:system-ui,sans-serif;text-align:center;padding:3rem;color:#111">` +
-    `<h2>&#10003; Signed in to Yandex Metrica</h2>` +
+    `<h2>&#10003; Signed in to Yandex</h2>` +
     `<p>You can close this tab and return to your app.</p></body></html>`
 
 function escapeHtml(s: string): string {
