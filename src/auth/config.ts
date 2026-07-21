@@ -55,6 +55,14 @@ export function cleanEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
     return out
 }
 
+function isValidUrl(value: string): boolean {
+    try {
+        return Boolean(new URL(value))
+    } catch {
+        return false
+    }
+}
+
 export interface AuthDefaults {
     scope: string
     appName: string
@@ -89,15 +97,21 @@ export function loadYandexAuthConfig(
             `YANDEX_OAUTH_LOOPBACK_PORT must be an integer 1024-65535 (got "${portRaw}")`,
         )
     }
+    const oauthBaseUrl =
+        e.YANDEX_OAUTH_BASE_URL ??
+        defaults.oauthBaseUrl ??
+        DEFAULT_OAUTH_BASE_URL
+    if (!isValidUrl(oauthBaseUrl)) {
+        throw new Error(
+            `YANDEX_OAUTH_BASE_URL must be a valid URL (got "${oauthBaseUrl}")`,
+        )
+    }
     return {
         scope: defaults.scope,
         appName: defaults.appName,
         embeddedClientId: defaults.embeddedClientId,
         loopbackPort,
-        oauthBaseUrl:
-            e.YANDEX_OAUTH_BASE_URL ??
-            defaults.oauthBaseUrl ??
-            DEFAULT_OAUTH_BASE_URL,
+        oauthBaseUrl,
         customClientId: e.YANDEX_OAUTH_CLIENT_ID,
         customClientSecret: e.YANDEX_OAUTH_CLIENT_SECRET,
         staticToken: e[defaults.staticTokenEnv],
