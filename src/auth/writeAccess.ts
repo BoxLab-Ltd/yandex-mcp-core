@@ -13,12 +13,14 @@ export async function assertWriteAccess(
     provider: TokenProvider,
 ): Promise<void> {
     const { writeScope } = config
-    if (!config.writeEnabled || !writeScope) {
+    if (!config.writeEnabled) {
         throw new WriteAccessError(
             `Write tools are disabled. Set ${config.writeEnv ?? 'the write flag'}=1 in the server's environment to enable them.`,
         )
     }
     await provider.getAccessToken()
+    // No separate write scope (e.g. Webmaster's base scopes already allow writes): the flag is the gate.
+    if (!writeScope) return
     // A static token's scope is unknown: let the API decide.
     if (!provider.grantedScope) return
     // No recorded scope means a login from before write support, i.e. read-only.

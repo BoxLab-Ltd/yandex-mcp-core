@@ -119,6 +119,29 @@ describe('assertWriteAccess', () => {
         await assertWriteAccess(on, new StaticTokenProvider('s'))
     })
 
+    it('gates on the flag alone when the server has no separate write scope', async () => {
+        const base = loadYandexAuthConfig(env({ W: '1' }), {
+            ...DEFAULTS,
+            writeScope: undefined,
+            writeEnv: 'W',
+        })
+        await assertWriteAccess(
+            base,
+            new SessionTokenProvider({ accessToken: 't', expiresAt: 0 }),
+        )
+        const off = loadYandexAuthConfig(env({}), {
+            ...DEFAULTS,
+            writeScope: undefined,
+            writeEnv: 'W',
+        })
+        await expect(
+            assertWriteAccess(
+                off,
+                new SessionTokenProvider({ accessToken: 't', expiresAt: 0 }),
+            ),
+        ).rejects.toThrow(/W=1/)
+    })
+
     it('reports a missing sign-in before the scope', async () => {
         await expect(
             assertWriteAccess(on, new SessionTokenProvider(null)),
