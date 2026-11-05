@@ -1,6 +1,10 @@
 import { randomBytes } from 'node:crypto'
 import { openBrowser } from './browser.js'
-import { oauthClientConfig, type YandexAuthConfig } from './config.js'
+import {
+    oauthClientConfig,
+    requestedScope,
+    type YandexAuthConfig,
+} from './config.js'
 import { startLoopback } from './loopback.js'
 import {
     buildAuthorizeUrl,
@@ -18,13 +22,16 @@ function base64Url(buf: Buffer): string {
         .replace(/=+$/, '')
 }
 
+// Yandex may omit `scope` from the token response; keep what we asked for so writes can be gated on it.
+export function withScope(tokens: TokenSet, scope: string): TokenSet {
+    return tokens.scope ? tokens : { ...tokens, scope }
+}
+
 /** Only a failure to BIND the port should trigger the out-of-band fallback. */
 function isBindError(err: unknown): boolean {
     const code = (err as { code?: string } | null)?.code
     return (
-        code === 'EADDRINUSE' ||
-        code === 'EACCES' ||
-        code === 'EADDRNOTAVAIL'
+        code === 'EADDRINUSE' || code === 'EACCES' || code === 'EADDRNOTAVAIL'
     )
 }
 
@@ -55,6 +62,7 @@ export async function interactiveLogin(
 ): Promise<TokenSet> {
     const oauth = { ...oauthClientConfig(config), fetchImpl: opts.fetchImpl }
     const open = opts.openUrl ?? openBrowser
+    const scope = requestedScope(config)
     const pkce = generatePkce()
     const state = base64Url(randomBytes(16))
 
@@ -76,7 +84,7 @@ export async function interactiveLogin(
         if (listener) {
             const url = buildAuthorizeUrl(oauth, {
                 codeChallenge: pkce.challenge,
-                scope: config.scope,
+                scope,
                 redirectUri: listener.redirectUri,
                 state,
             })
@@ -87,11 +95,14 @@ export async function interactiveLogin(
             open(url)
             try {
                 const code = await listener.code
-                return await exchangeCode(oauth, {
-                    code,
-                    codeVerifier: pkce.verifier,
-                    redirectUri: listener.redirectUri,
-                })
+                return withScope(
+                    await exchangeCode(oauth, {
+                        code,
+                        codeVerifier: pkce.verifier,
+                        redirectUri: listener.redirectUri,
+                    }),
+                    scope,
+                )
             } finally {
                 listener.close()
             }
@@ -106,16 +117,19 @@ export async function interactiveLogin(
     }
     const url = buildAuthorizeUrl(oauth, {
         codeChallenge: pkce.challenge,
-        scope: config.scope,
+        scope,
         redirectUri: OOB_REDIRECT_URI,
         state,
     })
     open(url)
     const code = (await opts.promptForCode(url)).trim()
     if (!code) throw new Error('No code entered — aborting.')
-    return exchangeCode(oauth, {
-        code,
-        codeVerifier: pkce.verifier,
-        redirectUri: OOB_REDIRECT_URI,
-    })
+    return withScope(
+        await exchangeCode(oauth, {
+            code,
+            codeVerifier: pkce.verifier,
+            redirectUri: OOB_REDIRECT_URI,
+        }),
+        scope,
+    )
 }

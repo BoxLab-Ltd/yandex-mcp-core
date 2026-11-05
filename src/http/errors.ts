@@ -90,7 +90,12 @@ export function errorFromResponse(
     }
     const errorTypes = body?.errors?.map(e => e.error_type) ?? []
     const detail =
-        body?.errors?.map(e => `${e.error_type}: ${e.message}`).join('; ') ||
+        body?.errors
+            ?.map(
+                e =>
+                    `${e.error_type}: ${e.message}${e.location ? ` (${e.location})` : ''}`,
+            )
+            .join('; ') ||
         body?.message ||
         rawBody.slice(0, 500) ||
         'Unknown error'

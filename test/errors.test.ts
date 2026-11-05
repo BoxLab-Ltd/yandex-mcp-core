@@ -17,6 +17,24 @@ describe('errorFromResponse', () => {
         expect(err.message).toContain('access_denied')
     })
 
+    it('names the offending field when Yandex reports its location', () => {
+        const err = errorFromResponse(
+            400,
+            JSON.stringify({
+                errors: [
+                    {
+                        error_type: 'invalid_parameter',
+                        message: 'must not be null',
+                        location: 'chart_annotation.group',
+                    },
+                ],
+            }),
+        )
+        expect(err.message).toBe(
+            'Yandex API 400: invalid_parameter: must not be null (chart_annotation.group)',
+        )
+    })
+
     it('treats quota errors (429) as throttled and retryable', () => {
         const err = errorFromResponse(
             429,

@@ -1,4 +1,8 @@
-import { isCustomApp, oauthClientConfig, type YandexAuthConfig } from './config.js'
+import {
+    isCustomApp,
+    oauthClientConfig,
+    type YandexAuthConfig,
+} from './config.js'
 import {
     RefreshingTokenProvider,
     SessionTokenProvider,
@@ -50,7 +54,7 @@ export function resolveTokenProvider(
             }
         }
         return {
-            provider: new SessionTokenProvider(cached.accessToken, store),
+            provider: new SessionTokenProvider(cached, store),
             store,
             mode: `token file (${store.path}); ~1-year token, re-run \`auth\` when it expires`,
         }

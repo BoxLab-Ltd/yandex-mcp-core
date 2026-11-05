@@ -82,16 +82,23 @@ function buildQuery(params: QueryParams): URLSearchParams {
     return sp
 }
 
-type HttpMethod = 'GET' | 'POST'
+export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE'
 
 interface FetchOptions {
     method: HttpMethod
     accept: string
+    body?: string | FormData
+    contentType?: string
+    idempotent: boolean
 }
 
 export interface RequestOptions {
     method?: HttpMethod
     params?: QueryParams
+    json?: unknown
+    form?: FormData
+    // A lost response to a mutation may still have been applied, so only GET and bare POST retry on timeouts/5xx.
+    idempotent?: boolean
 }
 
 /**
@@ -134,10 +141,25 @@ export class YandexClient {
         path: string,
         opts: RequestOptions = {},
     ): Promise<unknown> {
+        const method = opts.method ?? 'GET'
+        const hasBody = opts.json !== undefined || opts.form !== undefined
         const { status, text } = await this.send(
             path,
             this.withLang(opts.params ?? {}),
-            { method: opts.method ?? 'GET', accept: 'application/json' },
+            {
+                method,
+                accept: 'application/json',
+                body:
+                    opts.form ??
+                    (opts.json !== undefined
+                        ? JSON.stringify(opts.json)
+                        : undefined),
+                contentType:
+                    opts.json !== undefined ? 'application/json' : undefined,
+                idempotent:
+                    opts.idempotent ??
+                    (method === 'GET' || (method === 'POST' && !hasBody)),
+            },
         )
         return this.parseJson(status, text)
     }
@@ -292,7 +314,11 @@ export class YandexClient {
                     continue
                 }
                 const retryable =
-                    err instanceof YandexApiError ? err.isRetryable : true
+                    err instanceof YandexApiError
+                        ? opts.idempotent
+                            ? err.isRetryable
+                            : err.isThrottled
+                        : opts.idempotent
                 if (!retryable || attempt >= this.maxRetries) throw err
                 await this.sleep(this.backoffDelay(attempt))
                 attempt += 1
@@ -328,7 +354,11 @@ export class YandexClient {
                     Authorization: `OAuth ${token}`,
                     'User-Agent': this.options.userAgent,
                     Accept: opts.accept,
+                    ...(opts.contentType
+                        ? { 'Content-Type': opts.contentType }
+                        : {}),
                 },
+                body: opts.body,
                 signal: controller.signal,
             })
             // Read the body inside the timer scope so a stalled body is aborted too.

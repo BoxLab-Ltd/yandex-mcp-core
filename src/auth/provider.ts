@@ -14,6 +14,7 @@ export interface TokenProvider {
     canRefresh(): boolean
     /** Adopt a token set from an in-process login, updating the live token. */
     setTokens?(tokens: TokenSet): void
+    grantedScope?(): string | undefined
 }
 
 /** A fixed token (env var). Immutable — CI/static use, not the login flow. */
@@ -42,16 +43,16 @@ export const NOT_AUTHENTICATED_MESSAGE =
  */
 export class SessionTokenProvider implements TokenProvider {
     constructor(
-        private token: string | null,
+        private tokens: TokenSet | null,
         private readonly store?: TokenStore,
     ) {}
 
     async getAccessToken(): Promise<string> {
-        if (this.token) return this.token
+        if (this.tokens) return this.tokens.accessToken
         const cached = this.store?.read()
         if (cached?.accessToken) {
-            this.token = cached.accessToken
-            return this.token
+            this.tokens = cached
+            return cached.accessToken
         }
         throw new Error(NOT_AUTHENTICATED_MESSAGE)
     }
@@ -65,7 +66,11 @@ export class SessionTokenProvider implements TokenProvider {
     }
 
     setTokens(tokens: TokenSet): void {
-        this.token = tokens.accessToken
+        this.tokens = tokens
+    }
+
+    grantedScope(): string | undefined {
+        return (this.tokens ?? this.store?.read())?.scope
     }
 }
 
@@ -120,6 +125,10 @@ export class RefreshingTokenProvider implements TokenProvider {
         this.current = tokens
     }
 
+    grantedScope(): string | undefined {
+        return this.current?.scope
+    }
+
     private refresh(): Promise<string> {
         // Single-flight: concurrent callers share one refresh round-trip.
         if (!this.inFlight) {
@@ -141,6 +150,7 @@ export class RefreshingTokenProvider implements TokenProvider {
         const merged: TokenSet = {
             ...next,
             refreshToken: next.refreshToken ?? refresh,
+            scope: next.scope ?? this.current?.scope,
         }
         this.current = merged
         this.store.write(merged)

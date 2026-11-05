@@ -123,6 +123,8 @@ export function buildAuthorizeUrl(
         redirect_uri: params.redirectUri ?? OOB_REDIRECT_URI,
         code_challenge: params.codeChallenge,
         code_challenge_method: 'S256',
+        // Without it Yandex silently reuses an earlier grant for the browser's default account.
+        force_confirm: 'yes',
     })
     if (params.scope) q.set('scope', params.scope)
     if (params.state) q.set('state', params.state)

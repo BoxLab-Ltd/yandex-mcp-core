@@ -217,3 +217,82 @@ describe('YandexClient concurrency', () => {
         expect(peak).toBeLessThanOrEqual(2)
     })
 })
+
+describe('YandexClient request bodies', () => {
+    it('sends a JSON body with its content type on PUT', async () => {
+        const fetchImpl = mock(
+            async (_url: string | URL | Request, _init?: RequestInit) =>
+                json(200, { ok: true }),
+        )
+        const client = makeClient(fetchImpl as unknown as typeof fetch)
+        await client.requestJson('/x', {
+            method: 'PUT',
+            json: { chart_annotation: { title: 't' } },
+        })
+        const init = fetchImpl.mock.calls[0]![1]!
+        expect(init.method).toBe('PUT')
+        expect(init.body).toBe('{"chart_annotation":{"title":"t"}}')
+        expect((init.headers as Record<string, string>)['Content-Type']).toBe(
+            'application/json',
+        )
+    })
+
+    it('passes FormData through untouched and lets fetch set the boundary', async () => {
+        const fetchImpl = mock(
+            async (_url: string | URL | Request, _init?: RequestInit) =>
+                json(200, {}),
+        )
+        const client = makeClient(fetchImpl as unknown as typeof fetch)
+        const form = new FormData()
+        form.set('file', new Blob(['Date,UTMSource,Expenses\n']), 'e.csv')
+        await client.requestJson('/up', { method: 'POST', form })
+        const init = fetchImpl.mock.calls[0]![1]!
+        expect(init.body).toBe(form)
+        expect(
+            (init.headers as Record<string, string>)['Content-Type'],
+        ).toBeUndefined()
+    })
+})
+
+describe('YandexClient mutation retries', () => {
+    it('does not retry a mutation after a network error', async () => {
+        const fetchImpl = mock(async () => {
+            throw new TypeError('socket hang up')
+        })
+        const client = makeClient(fetchImpl as unknown as typeof fetch)
+        await expect(
+            client.requestJson('/m', { method: 'POST', json: {} }),
+        ).rejects.toBeInstanceOf(YandexApiError)
+        expect(fetchImpl).toHaveBeenCalledTimes(1)
+    })
+
+    it('does not retry a DELETE after a 503', async () => {
+        const fetchImpl = mock(async () => json(503, { message: 'busy' }))
+        const client = makeClient(fetchImpl as unknown as typeof fetch)
+        await expect(
+            client.requestJson('/m/1', { method: 'DELETE' }),
+        ).rejects.toBeInstanceOf(YandexApiError)
+        expect(fetchImpl).toHaveBeenCalledTimes(1)
+    })
+
+    it('still retries a throttled mutation', async () => {
+        let n = 0
+        const fetchImpl = mock(async () =>
+            n++ === 0 ? json(429, { message: 'slow down' }) : json(200, {}),
+        )
+        const client = makeClient(fetchImpl as unknown as typeof fetch)
+        await client.requestJson('/m', { method: 'POST', json: {} })
+        expect(fetchImpl).toHaveBeenCalledTimes(2)
+    })
+
+    it('keeps retrying a body-less POST on network errors', async () => {
+        let n = 0
+        const fetchImpl = mock(async () => {
+            if (n++ === 0) throw new TypeError('reset')
+            return json(200, {})
+        })
+        const client = makeClient(fetchImpl as unknown as typeof fetch)
+        await client.requestJson('/logrequests', { method: 'POST' })
+        expect(fetchImpl).toHaveBeenCalledTimes(2)
+    })
+})

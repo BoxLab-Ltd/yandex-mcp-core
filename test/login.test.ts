@@ -41,7 +41,9 @@ describe('interactiveLogin', () => {
                 )
             },
             promptForCode: () => {
-                throw new Error('OOB prompt should not run on the loopback path')
+                throw new Error(
+                    'OOB prompt should not run on the loopback path',
+                )
             },
         })
         expect(tokens.accessToken).toBe('tok')
@@ -66,5 +68,27 @@ describe('interactiveLogin', () => {
                 openUrl: () => {},
             }),
         ).rejects.toThrow(/copy-paste handler/)
+    })
+
+    it('asks for the write scope only when writes are enabled, and records it', async () => {
+        let asked = ''
+        const noScopeFetch = (async () =>
+            new Response(
+                JSON.stringify({ access_token: 'tok', expires_in: 3600 }),
+                { status: 200 },
+            )) as unknown as typeof fetch
+        const tokens = await interactiveLogin(
+            { ...cfg(1), writeScope: 'test:write', writeEnabled: true },
+            {
+                forceOob: true,
+                fetchImpl: noScopeFetch,
+                openUrl: url => {
+                    asked = new URL(url).searchParams.get('scope') ?? ''
+                },
+                promptForCode: async () => 'CODE',
+            },
+        )
+        expect(asked).toBe('test:read test:write')
+        expect(tokens.scope).toBe('test:read test:write')
     })
 })

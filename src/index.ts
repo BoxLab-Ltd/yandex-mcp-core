@@ -9,11 +9,13 @@ export * from './auth/config.js'
 export * from './auth/login.js'
 export * from './auth/resolve.js'
 export * from './auth/cli.js'
+export * from './auth/writeAccess.js'
 
 // HTTP: the Yandex API client and its error type.
 export * from './http/errors.js'
 export * from './http/client.js'
 
-// MCP helpers: result shaping and the login/submit_code tools.
+// MCP helpers: result shaping, the login/submit_code tools, mutation confirmation.
 export * from './mcp/result.js'
 export * from './mcp/loginTools.js'
+export * from './mcp/confirm.js'

@@ -7,6 +7,9 @@ export const DEFAULT_OAUTH_BASE_URL = 'https://oauth.yandex.com'
 export interface YandexAuthConfig {
     /** OAuth scope this server requests, e.g. 'metrika:read'. */
     scope: string
+    writeScope?: string
+    writeEnabled?: boolean
+    writeEnv?: string
     /** App identity: token-cache dir segment + User-Agent, e.g. 'yandex-metrica-mcp'. */
     appName: string
     /** Built-in public client id for this server's Yandex app. */
@@ -27,6 +30,12 @@ export interface YandexAuthConfig {
 /** True when the config points at the user's own OAuth app (id override present). */
 export function isCustomApp(config: YandexAuthConfig): boolean {
     return config.customClientId !== undefined
+}
+
+export function requestedScope(config: YandexAuthConfig): string {
+    return config.writeEnabled && config.writeScope
+        ? `${config.scope} ${config.writeScope}`
+        : config.scope
 }
 
 /** Build the OAuth client config: the custom app id if set, else the embedded one. */
@@ -63,12 +72,23 @@ function isValidUrl(value: string): boolean {
     }
 }
 
+function parseFlag(name: string, raw: string): boolean {
+    const v = raw.trim().toLowerCase()
+    if (['1', 'true', 'yes', 'on'].includes(v)) return true
+    if (['0', 'false', 'no', 'off'].includes(v)) return false
+    throw new Error(
+        `${name} must be 1/true/yes/on or 0/false/no/off (got "${raw}")`,
+    )
+}
+
 export interface AuthDefaults {
     scope: string
     appName: string
     embeddedClientId: string
     /** Env var name carrying a static token, e.g. 'YANDEX_METRIKA_TOKEN'. */
     staticTokenEnv: string
+    writeScope?: string
+    writeEnv?: string
     loopbackPort?: number
     oauthBaseUrl?: string
 }
@@ -106,8 +126,14 @@ export function loadYandexAuthConfig(
             `YANDEX_OAUTH_BASE_URL must be a valid URL (got "${oauthBaseUrl}")`,
         )
     }
+    const writeRaw = defaults.writeEnv ? e[defaults.writeEnv] : undefined
+    const writeEnabled =
+        writeRaw !== undefined && parseFlag(defaults.writeEnv!, writeRaw)
     return {
         scope: defaults.scope,
+        writeScope: defaults.writeScope,
+        writeEnabled,
+        writeEnv: defaults.writeEnv,
         appName: defaults.appName,
         embeddedClientId: defaults.embeddedClientId,
         loopbackPort,

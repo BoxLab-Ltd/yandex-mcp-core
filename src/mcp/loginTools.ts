@@ -2,7 +2,12 @@ import { randomBytes } from 'node:crypto'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import { openBrowser } from '../auth/browser.js'
-import { oauthClientConfig, type YandexAuthConfig } from '../auth/config.js'
+import {
+    oauthClientConfig,
+    requestedScope,
+    type YandexAuthConfig,
+} from '../auth/config.js'
+import { withScope } from '../auth/login.js'
 import { startLoopback } from '../auth/loopback.js'
 import {
     buildAuthorizeUrl,
@@ -32,6 +37,8 @@ export interface LoginToolDeps {
     config: YandexAuthConfig
     provider: TokenProvider
     store: TokenStore
+    /** Override how the consent URL is opened (tests inject a no-op). */
+    openUrl?: (url: string) => void
 }
 
 // A copy-paste sign-in awaiting its code. In-process, single-user, so a lone
@@ -40,12 +47,29 @@ interface PendingLogin {
     verifier: string
     redirectUri: string
     oauth: OAuthClientConfig
+    scope: string
 }
 let pending: PendingLogin | null = null
 
 const SIGNED_IN = {
     signed_in: true,
     message: 'Signed in to Yandex. You can run the data tools now.',
+}
+
+// A cancelled tool call must free the loopback port now, not after LOOPBACK_WAIT_MS.
+function unlessAborted<T>(
+    promise: Promise<T>,
+    signal: AbortSignal,
+): Promise<T> {
+    if (signal.aborted)
+        return Promise.reject(new Error('Sign-in was cancelled.'))
+    return new Promise<T>((resolve, reject) => {
+        const onAbort = () => reject(new Error('Sign-in was cancelled.'))
+        signal.addEventListener('abort', onAbort, { once: true })
+        promise
+            .then(resolve, reject)
+            .finally(() => signal.removeEventListener('abort', onAbort))
+    })
 }
 
 function adopt(deps: LoginToolDeps, tokens: TokenSet): void {
@@ -59,7 +83,9 @@ export function registerLoginTools(
     deps: LoginToolDeps,
 ): void {
     const oauth = oauthClientConfig(deps.config)
-    const { scope, loopbackPort } = deps.config
+    const open = deps.openUrl ?? openBrowser
+    const scope = requestedScope(deps.config)
+    const { loopbackPort } = deps.config
 
     server.registerTool(
         'login',
@@ -84,7 +110,7 @@ export function registerLoginTools(
                 openWorldHint: true,
             },
         },
-        async args => {
+        async (args, extra) => {
             try {
                 const pkce = generatePkce()
                 const state = base64Url(randomBytes(16))
@@ -107,15 +133,18 @@ export function registerLoginTools(
                             redirectUri: listener.redirectUri,
                             state,
                         })
-                        openBrowser(url)
+                        open(url)
                         try {
-                            const code = await listener.code
+                            const code = await unlessAborted(
+                                listener.code,
+                                extra.signal,
+                            )
                             const tokens = await exchangeCode(oauth, {
                                 code,
                                 codeVerifier: pkce.verifier,
                                 redirectUri: listener.redirectUri,
                             })
-                            adopt(deps, tokens)
+                            adopt(deps, withScope(tokens, scope))
                             pending = null
                             return toToolResult({ ...SIGNED_IN })
                         } finally {
@@ -135,8 +164,9 @@ export function registerLoginTools(
                     verifier: pkce.verifier,
                     redirectUri: OOB_REDIRECT_URI,
                     oauth,
+                    scope,
                 }
-                openBrowser(url)
+                open(url)
                 return toToolResult({
                     signed_in: false,
                     authorize_url: url,
@@ -182,7 +212,7 @@ export function registerLoginTools(
                     codeVerifier: pending.verifier,
                     redirectUri: pending.redirectUri,
                 })
-                adopt(deps, tokens)
+                adopt(deps, withScope(tokens, pending.scope))
                 pending = null
                 return toToolResult({ ...SIGNED_IN })
             } catch (err) {

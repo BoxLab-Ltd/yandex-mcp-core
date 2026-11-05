@@ -19,6 +19,11 @@ It provides:
   streaming) that talks to any Yandex REST API.
 - **`YandexApiError`** + `errorResult` / `toToolResult` — error mapping and MCP
   result shaping.
+- **Write gate** — an opt-in write scope requested only when the server's flag
+  is on, `assertWriteAccess` to stop a read-only sign-in with a clear next
+  step, and `createMutationConfirmer` so the user approves every change (MCP
+  elicitation when the client supports it, else a one-time confirm token bound
+  to the exact request). Mutations are never retried after a timeout.
 
 Each server plugs in its own OAuth scope, app id, token-cache name and static
 token env var; nothing is shared at runtime between servers except the code.
@@ -57,6 +62,26 @@ const client = new YandexClient({
 
 // register the login/submit_code tools; they own token persistence
 registerLoginTools(server, { config: auth, provider, store })
+```
+
+### Write tools
+
+```ts
+const auth = loadYandexAuthConfig(process.env, {
+    // …as above, plus:
+    writeScope: 'metrika:write',
+    writeEnv: 'YANDEX_METRIKA_ENABLE_WRITE',
+})
+const confirmer = createMutationConfirmer(server)
+
+// inside a write tool:
+await assertWriteAccess(auth, provider)
+const decision = await confirmer.confirm(
+    { tool: 'manage_annotation', summary: 'Create annotation …', request },
+    args.confirmToken,
+)
+if (!decision.confirmed) return decision.result
+await client.requestJson(path, { method: 'POST', json: request })
 ```
 
 ## License

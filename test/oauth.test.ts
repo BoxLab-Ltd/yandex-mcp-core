@@ -40,6 +40,7 @@ describe('buildAuthorizeUrl', () => {
         expect(url.searchParams.get('client_id')).toBe('cid')
         expect(url.searchParams.get('code_challenge')).toBe('CH')
         expect(url.searchParams.get('code_challenge_method')).toBe('S256')
+        expect(url.searchParams.get('force_confirm')).toBe('yes')
         expect(url.searchParams.get('redirect_uri')).toBe(OOB_REDIRECT_URI)
         expect(url.searchParams.get('scope')).toBe('metrika:read')
     })

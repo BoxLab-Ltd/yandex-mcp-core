@@ -77,8 +77,25 @@ describe('SessionTokenProvider', () => {
     })
 
     it('returns its seeded token without a store', async () => {
-        const p = new SessionTokenProvider('SEED')
+        const p = new SessionTokenProvider({
+            accessToken: 'SEED',
+            expiresAt: 0,
+        })
         expect(await p.getAccessToken()).toBe('SEED')
+    })
+
+    it('reports the scope of the adopted token, or undefined when unrecorded', () => {
+        const p = new SessionTokenProvider(
+            { accessToken: 'OLD', expiresAt: 0 },
+            memStore(null),
+        )
+        expect(p.grantedScope()).toBeUndefined()
+        p.setTokens({
+            accessToken: 'NEW',
+            expiresAt: 0,
+            scope: 'metrika:read metrika:write',
+        })
+        expect(p.grantedScope()).toBe('metrika:read metrika:write')
     })
 })
 
