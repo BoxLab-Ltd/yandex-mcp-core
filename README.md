@@ -24,6 +24,10 @@ It provides:
   step, and `createMutationConfirmer` so the user approves every change (MCP
   elicitation when the client supports it, else a one-time confirm token bound
   to the exact request). Mutations are never retried after a timeout.
+- **Local Streamable HTTP** — `parseTransportOptions` + `serveHttp`: one MCP
+  session per client over a shared factory, loopback-only by default with
+  Host/Origin checks against DNS rebinding, and a required bearer token for
+  any non-local bind.
 
 Each server plugs in its own OAuth scope, app id, token-cache name and static
 token env var; nothing is shared at runtime between servers except the code.
@@ -82,6 +86,20 @@ const decision = await confirmer.confirm(
 )
 if (!decision.confirmed) return decision.result
 await client.requestJson(path, { method: 'POST', json: request })
+```
+
+### HTTP mode
+
+```ts
+const transport = parseTransportOptions(process.argv, process.env, {
+    port: 7801,
+})
+if (transport.mode === 'http') {
+    const http = await serveHttp(createSession, transport)
+    console.error(`serving MCP at ${http.url}`)
+} else {
+    await createSession().connect(new StdioServerTransport())
+}
 ```
 
 ## License

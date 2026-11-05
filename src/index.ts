@@ -15,7 +15,8 @@ export * from './auth/writeAccess.js'
 export * from './http/errors.js'
 export * from './http/client.js'
 
-// MCP helpers: result shaping, the login/submit_code tools, mutation confirmation.
+// MCP helpers: result shaping, the login/submit_code tools, mutation confirmation, HTTP transport.
 export * from './mcp/result.js'
 export * from './mcp/loginTools.js'
 export * from './mcp/confirm.js'
+export * from './mcp/http.js'
